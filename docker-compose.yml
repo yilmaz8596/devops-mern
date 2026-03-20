@@ -1,14 +1,24 @@
 services:
+  # --- MongoDB ---
+  mongo:
+    image: mongodb/mongodb-community-server:7.0-ubuntu2204-slim  # MongoDB Community Server 7.0
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"           # Expose MongoDB on host port 27017
+    volumes:
+      - mongo-data:/data/db     # Persist data across container restarts
+
   # --- Backend (Express + Mongoose) ---
   backend:
     build: ./server               # Build image from server/Dockerfile
     container_name: backend
     restart: unless-stopped       # Auto-restart on crash, unless manually stopped
     env_file: ./server/.env       # Inject PORT and MONGO_URI at runtime
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # Resolve host machine IP so container can reach host MongoDB
     ports:
       - "5000:5000"               # Expose API on host port 5000
+    depends_on:
+      - mongo                     # Ensure MongoDB container starts first
 
   # --- Frontend (Vite + React) ---
   frontend:
@@ -22,3 +32,6 @@ services:
       - "5173:5173"               # Expose UI on host port 5173
     depends_on:
       - backend                   # Ensure backend container starts first
+
+volumes:
+  mongo-data:                     # Named volume for MongoDB data persistence
