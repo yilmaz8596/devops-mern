@@ -52,3 +52,17 @@ jobs:
         # Step 8: Build the frontend Docker image to verify the Dockerfile and Vite build succeed
         - name: Build frontend image
           run: docker build -t frontend ./client
+
+deploy:
+   needs: build-and-lint  # Only run deploy if build-and-lint succeeds
+   if:github.event_name == 'push'
+   runs-on: ubuntu-latest
+   steps:
+     - name: Deploy to server
+       uses:actions/checkout@v4
+     
+     - name: Add EC2 host to known_hosts
+       run: |
+         mkdir -p ~/.ssh
+         ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+      
