@@ -25,7 +25,7 @@ services:
     build:
       context: ./client
       args:
-        VITE_API_URL: http://localhost:5000/api  # Baked into bundle at build time (Vite requires build-time injection)
+        VITE_API_URL: http://52.59.226.92/api  # Baked into bundle at build time (Vite requires build-time injection)
     container_name: frontend
     restart: unless-stopped
     ports:
