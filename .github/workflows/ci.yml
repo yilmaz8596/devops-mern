@@ -1,6 +1,8 @@
 
+# CI pipeline: lints and builds both backend and frontend on every push/PR to main
 name: build-and-lint 
 
+# Triggers: run on push or pull_request targeting the main branch
 on:
   push:
     branches: [main]
@@ -10,35 +12,43 @@ on:
 
 jobs: 
    build-and-lint:
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-latest  # Use a fresh Ubuntu runner provided by GitHub
   
       steps:
+        # Step 1: Clone the repository into the runner so subsequent steps can access the code
         - name: Checkout repo
           uses: actions/checkout@v3
   
+        # Step 2: Install the specified Node.js version on the runner
         - name: Set up Node.js
           uses: actions/setup-node@v3
           with:
             node-version: 20
   
+        # Step 3: Install backend dependencies using lockfile for reproducible installs
         - name: Install backend dependencies
           working-directory: server
           run: npm ci 
   
+        # Step 4: Run ESLint on backend — fail if any warnings or errors are found
         - name: Lint backend
           working-directory: server
           run: npm run lint -- --max-warnings=0
   
+        # Step 5: Install frontend dependencies using lockfile for reproducible installs
         - name: Install frontend dependencies
           working-directory: client
           run: npm ci
 
+        # Step 6: Run ESLint on frontend — fail if any warnings or errors are found
         - name: Lint frontend
           working-directory: client
           run: npm run lint -- --max-warnings=0
 
+        # Step 7: Build the backend Docker image to verify the Dockerfile is valid
         - name: Build backend image 
           run: docker build -t backend ./server
 
+        # Step 8: Build the frontend Docker image to verify the Dockerfile and Vite build succeed
         - name: Build frontend image
           run: docker build -t frontend ./client
