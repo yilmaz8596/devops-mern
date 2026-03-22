@@ -55,14 +55,43 @@ jobs:
 
 deploy:
    needs: build-and-lint  # Only run deploy if build-and-lint succeeds
-   if:github.event_name == 'push'
+   if: github.event_name == 'push'  # Only deploy on direct push to main, not PRs
    runs-on: ubuntu-latest
+   
+   env:
+     EC2_HOST: ${{ secrets.EC2_HOST }}       # EC2 public IP stored in GitHub Secrets
+     EC2_USER: ${{ secrets.EC2_USER }}       # SSH user (e.g. ubuntu or ec2-user)
+     EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }} # Private SSH key stored in GitHub Secrets
+
    steps:
-     - name: Deploy to server
-       uses:actions/checkout@v4
-     
+     # Step 1: Checkout code so we can copy docker-compose.yml to the server
+     - name: Checkout repo
+       uses: actions/checkout@v4
+
+     # Step 2: Trust the EC2 host to prevent SSH from prompting for verification
      - name: Add EC2 host to known_hosts
        run: |
          mkdir -p ~/.ssh
          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
-      
+
+     # Step 3: Write the private key to a file and lock down permissions
+     - name: Set up SSH key
+       run: |
+         echo "$EC2_SSH_KEY" > ~/.ssh/id_rsa
+         chmod 600 ~/.ssh/id_rsa
+
+     # Step 4: Copy the latest docker-compose.yml and server .env to the EC2 instance
+     - name: Copy files to EC2
+       run: |
+         scp -i ~/.ssh/id_rsa docker-compose.yml $EC2_USER@$EC2_HOST:~/app/
+         scp -i ~/.ssh/id_rsa server/.env $EC2_USER@$EC2_HOST:~/app/server/
+
+     # Step 5: SSH into EC2, pull latest images and restart all containers
+     - name: Deploy on EC2
+       run: |
+         ssh -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST << 'EOF'
+           cd ~/app
+           docker-compose pull
+           docker-compose up -d --build
+           docker image prune -f
+         EOF
